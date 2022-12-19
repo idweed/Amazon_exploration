@@ -24,12 +24,12 @@ class AmazonSpider(scrapy.Spider):
     def parse(self, response):
         for book in response.xpath('//div[@class="a-column a-span12 a-text-center _cDEzb_grid-column_2hIsc"]'):
             item = {
-                'rank': book.xpath('.//span[@class="zg-bdg-text"]/text()').get(),
-                'title': book.xpath('.//div[@class="_cDEzb_p13n-sc-css-line-clamp-3_g3dy1"]/text()').get(),
-                'price': book.xpath(u'.//span[@class="p13n-sc-price"]/text()').get(),
-                'asin': book.xpath(u'.//div[@class="p13n-sc-uncoverable-faceout"]/@id').get(),
-                'link' : book.xpath(u'.//a[@role="link"]/@href').get(),
-                'img_preview':book.xpath(u'.//img/@src').get(),
+                'rank': book.xpath('.//span[@class="zg-bdg-text"]/text()').extract_first(),
+                'title': book.xpath('.//div[@class="_cDEzb_p13n-sc-css-line-clamp-3_g3dy1"]/text()').extract_first(),
+                'price': book.xpath(u'.//span[@class="p13n-sc-price"]/text()').extract_first(),
+                'asin': book.xpath(u'.//div[@class="p13n-sc-uncoverable-faceout"]/@id').extract_first(),
+                'link' : book.xpath(u'.//a[@role="link"]/@href').extract_first(),
+                'img_preview':book.xpath(u'.//img/@src').extract_first(),
                 #response.xpath(u'normalize-space(//span[contains(@class,"offer-price")])').extract_first()
             }
             yield scrapy.http.request.Request(
