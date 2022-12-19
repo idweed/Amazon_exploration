@@ -267,16 +267,26 @@ class AmazonSpider(scrapy.Spider):
 
                 item[u"image_url"] = new_image_url
 
+    def scrape_publication_date(self, item, response):
+        publication_date = response.xpath(
+            u'normalize-space(//div[@id="detail_bullets_id"]/table/tr/td[@class="bucket"]/div[@class="content"]/ul/li[contains(b,"CD") or contains(b,"Album vinyle")])').extract_first()
+        if publication_date:
+            publication_date = self.search_publication_date(publication_date)
+            if publication_date is not None:
+                item[u"publication_date"] = publication_date
+
+            # override
+
     def parse_detailed_offer(self, response):
-        """
-        goes to a product-specific page and parses various info
-        :param response:
-        :return:
-        """
         item = response.meta[u"item"]
+        # self.logger.debug(item, response)
 
         self.scrape_title(item, response)
         self.scrape_publication_date(item, response)
+        self.scrape_description(item, response)
         self.scrape_availability(item, response)
+        self.scrape_image_url(item, response)
+        self.scrape_offer_price(item, response)
+
 
         yield item
