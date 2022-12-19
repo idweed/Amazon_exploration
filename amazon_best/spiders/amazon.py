@@ -276,7 +276,6 @@ class AmazonSpider(scrapy.Spider):
         item = response.meta[u"item"]
 
         self.scrape_title(item, response)
-        self.scrape_authors(item, response)
         self.scrape_publication_date(item, response)
         self.scrape_availability(item, response)
 
