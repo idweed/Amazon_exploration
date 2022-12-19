@@ -37,12 +37,247 @@ class AmazonSpider(scrapy.Spider):
                 callback=self.parse_detailed_offer,
                 meta={u"item": item})
 
-    def parse_detailed_offer(self, response):
-        item = response.meta[u"item"]
+    def search_publication_date(self, s):
+        """
+        :param s:
+        :return:
+        """
+        rs = re.search(self.publication_date_re, s)
+        if rs:
+            return rs.group()
+
+    def scrape_brand(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
+        brand = response.xpath(u'normalize-space(//a[@id="brand"]/text())').extract_first()
+        if brand:
+            item[u'brand'] = brand
+        else:
+            item[u'brand'] = response.xpath(u'//td[@class="value"]/text()').extract_first()
+
+    def scrape_title(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
+        title = response.xpath(u'normalize-space(//span[@id="productTitle"])').extract_first()
+        if title:
+            item[u"title"] = title
+
+    def scrape_availability(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
         availability = response.xpath(u'normalize-space(//div[@id="availability"]/span)').extract_first()
         if availability == u'Voir les offres de ces vendeurs.':  # edge case when no availability clearly displayed but product is available
             item[u"availability"] = u"En stock."
         elif availability:
             item[u"availability"] = availability
+
+    def scrape_description(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
+        description = response.xpath(
+            u'//div[@id="productDescription"]/p[not(preceding-sibling::h3) or preceding-sibling::h3[1][.!="Critique"]]').extract_first()
+        if description is not None:
+            item[u"description"] = description
+
+    def scrape_lowest_price(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
+        offer_price = response.xpath(u'normalize-space(//span[contains(@id,"priceblock_ourprice")])').extract_first()
+        if not offer_price:
+            offer_price = response.xpath(u'normalize-space(//span[@id="priceblock_saleprice"])').extract_first()
+            is_new_offer = u"neuf" in response.xpath(
+                u'normalize-space(//span[@class="olp-padding-right"]/a)').extract_first()
+            if not offer_price and is_new_offer:  # if no clear price, only in format '[x] neuf a partir de EUR [y]'
+                offer_price = response.xpath(
+                    u'normalize-space(//span[@class="olp-padding-right"]/span[@class="a-color-price"])').extract_first()
+        if offer_price:
+            item[u"offer_price"] = offer_price.replace(u"EUR ", u"")
+
+    def parse_offer_listing(self, response):
+        """
+        :param response:
+        :return:
+        """
+        try:  # This page is either not the first one or the first one
+            item = response.meta[u"item"]
+        except KeyError:
+            item = items.PricingItem()
+            item[u"sku"] = str(response.meta[u"sku"])
+        offers_selector_list = response.xpath(u'//div[@class="a-row a-spacing-mini olpOffer"]')
+        if not offers_selector_list:  # Dismiss if no offer was found
+            self.logger.info(u"Failed to find any offer for sku: " + item[u"sku"])
+            return
+
+        for offer_selector in offers_selector_list:
+            if offer_selector.xpath(
+                    u'normalize-space(div[@class="a-column a-span3 olpConditionColumn"]/div[@class="a-section a-spacing-small"]/span[@class="a-size-medium olpCondition a-text-bold"])').extract_first() != u"Neuf":
+                continue  # Dismiss the offer if the product is not marked as new
+            if offer_selector.xpath(
+                    u'div[@class="a-column a-span2 olpSellerColumn"]/h3[@class="a-spacing-none olpSellerName"]/img[@alt="Amazon.fr"]'):
+                item[u"stored_price"] = item[u"offer_price"]  # because offer_price loaded is the Amazon price
+                continue
+            elif offer_selector.xpath(
+                    u'div[@class="a-column a-span2 olpSellerColumn"]/h3[@class="a-spacing-none olpSellerName"]/span[@class="a-size-medium a-text-bold"]/a'):
+                is_marketplace = True
+            else:
+                self.logger.error(u"Technical: No seller name found")
+                return
+
+            is_lowest_price_yet = False
+            is_lowest_price_too = False
+
+            offer_price = offer_selector.xpath(
+                u'normalize-space(div[@class="a-column a-span2 olpPriceColumn"]/span[@class="a-size-large a-color-price olpOfferPrice a-text-bold"])').extract_first()
+            if not offer_price:
+                self.logger.error(u"Technical: No price found")
+                continue
+
+            offer_price = u"".join(offer_price.replace(u"EUR ", u"").split(u"."))
+            if is_marketplace:
+                try:
+                    item[u"marketplace_price"]
+                except KeyError:
+                    item[u"marketplace_price"] = offer_price
+                    is_lowest_price_yet = True
+                else:
+                    if float(offer_price.replace(u",", u".")) < float(item[u"marketplace_price"].replace(u",", u".")):
+                        item[u"marketplace_price"] = offer_price
+                        is_lowest_price_yet = True
+                    elif offer_price == item[u"marketplace_price"]:
+                        is_lowest_price_too = True
+            else:
+                try:
+                    item[u"stored_price"]
+                except KeyError:
+                    item[u"stored_price"] = offer_price
+                    is_lowest_price_yet = True
+                else:
+                    if float(offer_price.replace(u",", u".")) < float(item[u"stored_price"].replace(u",", u".")):
+                        item[u"stored_price"] = offer_price
+                        is_lowest_price_yet = True
+                    elif offer_price == item[u"stored_price"]:
+                        is_lowest_price_too = True
+
+        # Go to the next page if there is one, otherwise yield the item if actual data was found
+        next_page_url_path = response.xpath(
+            u'//div[@class="a-text-center a-spacing-large"]/ul[@class="a-pagination"]/li[@class="a-last"]/a[text() = "Suivant"]/@href').extract_first()
+        if next_page_url_path is None:
+            # Dismiss the item if no offer price was found
+            try:
+                item[u"stored_price"]
+            except KeyError:
+                try:
+                    item[u"marketplace_price"]
+                except KeyError:
+                    self.logger.error(u"Failed to find any offer price")
+                    yield item
+                    return
+            else:
+                yield item
+        else:
+            yield scrapy.http.request.Request(
+                self.get_absolute_url(next_page_url_path),
+                callback=self.parse_offer_listing,
+                meta={u"item": item})
+
+    def scrape_is_stored_or_marketplace(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
+        # stored_offer = response.xpath(u'normalize-space(//span[contains(@id,"priceblock_ourprice")])').extract_first()
+        marketplace_offer = response.xpath(u'normalize-space(//span[@id="priceblock_saleprice"])').extract_first()
+        stored_offer = response.xpath(
+            u'//div[@id="shipsFromSoldBy_feature_div"]/div[@id="merchant-info"]').extract_first()
+        if (not stored_offer or u"vendu par Amazon" not in stored_offer):
+            item[u"stored_or_marketplace"] = u"marketplace"
+        else:
+            # if 'neufs', it means that there are marketplace sellers too
+            marketplace_offers_too = u"neufs" in response.xpath(
+                u'normalize-space(//span[@class="olp-padding-right"]/a)').extract_first()
+            if marketplace_offers_too:
+                item[u"stored_or_marketplace"] = u"stored_and_marketplace"
+            else:
+                if not marketplace_offer:
+                    item[u"stored_or_marketplace"] = u"stored"
+
+    def scrape_offer_price(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
+        # Scrape the offer price
+        offer_price = response.xpath(u'normalize-space(//span[contains(@class,"offer-price")])').extract_first()
+        if not offer_price:
+            offer_price = response.xpath(
+                u'normalize-space(//span[contains(@id,"priceblock_ourprice")])').extract_first()
+        if offer_price:
+            item[u"offer_price"] = offer_price.replace(u"EUR ", u"")
+
+    def scrape_image_url(self, item, response):
+        """
+        :param item:
+        :param response:
+        :return:
+        """
+        try:
+            data_dynamic_image_dict = json.loads(
+                response.xpath(u'//img[@id="landingImage"]/@data-a-dynamic-image').extract_first())
+        except (TypeError, ValueError):
+            pass
+        else:
+            image_urls = data_dynamic_image_dict.keys()
+            if image_urls:
+                for image_url in image_urls:
+                    split_image_url = urlsplit(image_url)
+                    split_image_url_path = split_image_url.path
+                    if split_image_url_path.count(u".") < 2:
+                        new_image_url = image_url
+                        break
+                else:
+                    image_url = image_urls[0]
+                    split_image_url = urlsplit(image_url)
+                    split_image_url_path = split_image_url.path
+                    image_url_path_parts = split_image_url_path.split(u".")
+                    if len(image_url_path_parts) > 1:
+                        image_url_path_parts.pop(-2)
+                    image_url_new_path = u".".join(image_url_path_parts)
+                    if image_url_new_path not in [u"/images/G/08/x-site/icons/no-img-lg.gif",
+                                                  u"/images/G/08/x-site/icons/no-img-sm.gif"]:
+                        new_image_url = urlparse.urlunsplit(
+                            urlparse.SplitResult(split_image_url.scheme, split_image_url.netloc, image_url_new_path,
+                                                 split_image_url.query, split_image_url.fragment))
+
+                item[u"image_url"] = new_image_url
+
+    def parse_detailed_offer(self, response):
+        """
+        goes to a product-specific page and parses various info
+        :param response:
+        :return:
+        """
+        item = response.meta[u"item"]
+
+        self.scrape_title(item, response)
+        self.scrape_authors(item, response)
+        self.scrape_publication_date(item, response)
+        self.scrape_availability(item, response)
+
         yield item
-        
