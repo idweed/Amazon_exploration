@@ -231,42 +231,6 @@ class AmazonSpider(scrapy.Spider):
         if offer_price:
             item[u"offer_price"] = offer_price.replace(u"EUR ", u"")
 
-    def scrape_image_url(self, item, response):
-        """
-        :param item:
-        :param response:
-        :return:
-        """
-        try:
-            data_dynamic_image_dict = json.loads(
-                response.xpath(u'//img[@id="landingImage"]/@data-a-dynamic-image').extract_first())
-        except (TypeError, ValueError):
-            pass
-        else:
-            image_urls = data_dynamic_image_dict.keys()
-            if image_urls:
-                for image_url in image_urls:
-                    split_image_url = urlsplit(image_url)
-                    split_image_url_path = split_image_url.path
-                    if split_image_url_path.count(u".") < 2:
-                        new_image_url = image_url
-                        break
-                else:
-                    image_url = image_urls[0]
-                    split_image_url = urlsplit(image_url)
-                    split_image_url_path = split_image_url.path
-                    image_url_path_parts = split_image_url_path.split(u".")
-                    if len(image_url_path_parts) > 1:
-                        image_url_path_parts.pop(-2)
-                    image_url_new_path = u".".join(image_url_path_parts)
-                    if image_url_new_path not in [u"/images/G/08/x-site/icons/no-img-lg.gif",
-                                                  u"/images/G/08/x-site/icons/no-img-sm.gif"]:
-                        new_image_url = urlparse.urlunsplit(
-                            urlparse.SplitResult(split_image_url.scheme, split_image_url.netloc, image_url_new_path,
-                                                 split_image_url.query, split_image_url.fragment))
-
-                item[u"image_url"] = new_image_url
-
     def scrape_publication_date(self, item, response):
         publication_date = response.xpath(
             u'normalize-space(//div[@id="detail_bullets_id"]/table/tr/td[@class="bucket"]/div[@class="content"]/ul/li[contains(b,"CD") or contains(b,"Album vinyle")])').extract_first()
@@ -285,7 +249,6 @@ class AmazonSpider(scrapy.Spider):
         self.scrape_publication_date(item, response)
         self.scrape_description(item, response)
         self.scrape_availability(item, response)
-        self.scrape_image_url(item, response)
         self.scrape_offer_price(item, response)
 
 
