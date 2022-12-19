@@ -33,7 +33,7 @@ class AmazonSpider(scrapy.Spider):
                 #response.xpath(u'normalize-space(//span[contains(@class,"offer-price")])').extract_first()
             }
             yield scrapy.http.request.Request(
-                'https://www.amazon.fr/dp/'+item['asin'],
+                'https://www.amazon.fr'+item['link'],
                 callback=self.parse_detailed_offer,
                 meta={u"item": item})
 
