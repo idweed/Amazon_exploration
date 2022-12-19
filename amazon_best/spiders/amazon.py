@@ -18,7 +18,7 @@ class AmazonSpider(scrapy.Spider):
         # Shuffle pages to try to avoid bans
         for page in [1,2]:
             #url = f'https://www.amazon.fr/gp/bestsellers/appliances/13519571031/ref=zg_bs_pg_2?ie=UTF8&pg={page}'
-            url = f'https://www.amazon.fr/gp/bestsellers/music/ref=zg_bs_pg_2?ie=UTF8&pg={page}'
+            url = 'https://www.amazon.fr/gp/bestsellers/music/ref=zg_bs_pg_2?ie=UTF8&pg='+str(page)
             yield scrapy.Request(url)
 
     def parse(self, response):
