@@ -251,7 +251,7 @@ class AmazonSpider(scrapy.Spider):
             u'normalize-space(//div[@id="detail_bullets_id"]/table/tr/td[@class="bucket"]/div[@class="content"]/ul/li[contains(b,"CD") or contains(b,"Album vinyle")])').extract_first()
         item["description"] = response.xpath(
             u'//div[@id="productDescription"]/p[not(preceding-sibling::h3) or preceding-sibling::h3[1][.!="Critique"]]').extract_first()
-        #self.scrape_availability(item, response)
+        self.scrape_availability(item, response)
         #self.scrape_offer_price(item, response)
 
 
