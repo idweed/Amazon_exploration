@@ -1,4 +1,10 @@
 import scrapy
+import keepa
+accesskey = '46bt1moa68mkpnn1s2844i7239dm8d28ua8mv2q40o20da062qgmulnsreim5eev' # enter real access key here
+api = keepa.Keepa(accesskey)
+products = api.query('B0B1QL3ZLS')
+print(products[0]["eanList"])
+# Single ASIN query
 
 
 class AmazonSpider(scrapy.Spider):
@@ -18,7 +24,7 @@ class AmazonSpider(scrapy.Spider):
         # Shuffle pages to try to avoid bans
         for page in [1,2]:
             #url = f'https://www.amazon.fr/gp/bestsellers/appliances/13519571031/ref=zg_bs_pg_2?ie=UTF8&pg={page}'
-            url = 'https://www.amazon.fr/gp/bestsellers/dvd/ref=zg_bs_pg_2?ie=UTF8&pg='+str(page)
+            url = 'hhttps://www.amazon.fr/gp/bestsellers/appliances/ref=zg_bs_nav_0?ie=UTF8&pg='+str(page)
             yield scrapy.Request(url)
 
     def parse(self, response):
@@ -253,6 +259,8 @@ class AmazonSpider(scrapy.Spider):
             u'//div[@id="productDescription"]/p[not(preceding-sibling::h3) or preceding-sibling::h3[1][.!="Critique"]]').extract_first()
         self.scrape_availability(item, response)
         #self.scrape_offer_price(item, response)
+        products = api.query(item["asin"])
+        item["ean"]= products[0]["eanList"]
 
 
         yield item
