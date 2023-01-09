@@ -2,9 +2,7 @@ import scrapy
 import keepa
 accesskey = '46bt1moa68mkpnn1s2844i7239dm8d28ua8mv2q40o20da062qgmulnsreim5eev' # enter real access key here
 api = keepa.Keepa(accesskey)
-products = api.query('B0B1QL3ZLS')
-print(products[0]["eanList"])
-# Single ASIN query
+
 
 
 class AmazonSpider(scrapy.Spider):

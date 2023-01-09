@@ -1,4 +1,4 @@
-FROM scrapinghub/scrapinghub-stack-scrapy:1.7-py3-latest
+#FROM scrapinghub/scrapinghub-stack-scrapy:1.7-py38-latest
 RUN apt-get update -y && apt-get upgrade -y && apt-get install zip unzip wget -y
 
 RUN apt-get install libtiff5-dev libjpeg62-turbo-dev libopenjp2-7-dev zlib1g-dev \
