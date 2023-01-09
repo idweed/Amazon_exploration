@@ -5,6 +5,9 @@ RUN apt-get install libtiff5-dev libjpeg62-turbo-dev libopenjp2-7-dev zlib1g-dev
     libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
     libharfbuzz-dev libfribidi-dev libxcb1-dev -y
 
+RUN ln -s /usr/bin/python3 /usr/bin/python & \
+    ln -s /usr/bin/pip3 /usr/bin/pip
+
 # CMD ["apt-get", "install", "-y", "chromium-browser"]
 # RUN locale-gen en_US.UTF-8  
 # ENV LANG en_US.UTF-8  
@@ -77,9 +80,9 @@ WORKDIR /app
 COPY ./requirements.txt /app/requirements.txt
 RUN easy_install distribute && pip install --upgrade distribute
 #RUN ["pip", "install", "--no-cache-dir", "-r", "requirements.txt"]
-RUN pip3 install --no-cache-dir -r requirements.txt
-RUN pip3 install --upgrade pillow
-RUN sudo python3 -m pip install gcloud
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pillow
+RUN sudo python -m pip install gcloud
 COPY . /app
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | tee /usr/share/keyrings/cloud.google.gpg && apt-get update -y && apt-get install google-cloud-sdk -y
-RUN python3 setup.py install
+RUN python setup.py install
