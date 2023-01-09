@@ -1,0 +1,7 @@
+image: true
+projects:
+  default: 630098
+  image: 1
+requirements:
+  file: requirements.txt
+#stack: scrapy:2.5
