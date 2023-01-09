@@ -68,7 +68,7 @@ RUN wget -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/`cu
 RUN unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
 
 ENV TERM xterm
-ENV SCRAPY_SETTINGS_MODULE fnac_screenshots.settings
+ENV SCRAPY_SETTINGS_MODULE amazon_best.settings
 RUN mkdir -p /app
 
 # install packages required by pillow
